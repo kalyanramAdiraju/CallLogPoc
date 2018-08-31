@@ -19,20 +19,18 @@ import android.widget.TextView
 import kotlinx.android.synthetic.main.activity_main.*
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.log
 
 
 class MainActivity : AppCompatActivity() {
     var READ_CALL_LOG_CODE = 21;
     var stringBuffer: StringBuffer = StringBuffer()
+    var textView:TextView? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
-
+        textView=findViewById(R.id.textView)
         setupPermissions()
-
-
     }
 
 
@@ -43,14 +41,14 @@ class MainActivity : AppCompatActivity() {
         if (permission != PackageManager.PERMISSION_GRANTED) {
             Log.i("TE", "Permission to record denied")
             makeRequest()
-        }else{
+        } else {
             getCallHistoryData()
         }
     }
 
     fun makeRequest() {
         ActivityCompat.requestPermissions(this,
-                arrayOf(Manifest.permission.READ_CALL_LOG,Manifest.permission.WRITE_CALL_LOG),
+                arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.WRITE_CALL_LOG),
                 READ_CALL_LOG_CODE)
     }
 
@@ -74,46 +72,53 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getCallHistoryData() {
-        var numberString:String=""
-        var dateString:String=""
-        var typeString:String=""
-        var durationString:String=""
-        var dir:String="=1"
-        var dircode :Int
+        var numberString: String = ""
+        var dateString: String = ""
+        var typeString: String = ""
+        var durationString: String = ""
+        var dir: String = ""
+        var dircode: Int
+        var managedCursor: Cursor?=null
 
-        var projections=Array<String>(5){CallLog.Calls._ID;CallLog.Calls.DATE;CallLog.Calls.NUMBER;CallLog.Calls.DURATION;CallLog.Calls.TYPE}
+        try {
+            val contacts = CallLog.Calls.CONTENT_URI
+            managedCursor = applicationContext.contentResolver.query(contacts, null, null, null, CallLog.Calls.DATE + " DESC")
+            var number: Number = managedCursor.getColumnIndex(NUMBER)
+            var type: Number
+            var date: Number = managedCursor.getColumnIndex(DATE)
+            var duration: Number = managedCursor.getColumnIndex(DURATION)
 
-        var mangedCursor: Cursor = applicationContext.contentResolver.query(CONTENT_URI, projections, null, null, null)
-        var number: Number = mangedCursor.getColumnIndex(NUMBER)
-        var type: Number
-        var date: Number = mangedCursor.getColumnIndex(DATE)
-        var duration: Number = mangedCursor.getColumnIndex(DURATION)
-        while(mangedCursor.moveToNext()){
-            numberString=mangedCursor.getString(number as Int)
-            dateString=mangedCursor.getString(date as Int)
-            durationString=mangedCursor.getString(duration as Int)
-            type = mangedCursor.getInt(mangedCursor.getColumnIndex(TYPE))
-            dircode=type.toInt()
-            when(type){
-                MISSED_TYPE ->dir="Missed Calls"
-                INCOMING_TYPE ->dir="Incoming Calls"
-                OUTGOING_TYPE ->dir="OutGoing Calls"
+            while (managedCursor.moveToNext()) {
+                numberString = managedCursor.getString(number as Int)
+                dateString = managedCursor.getString(date as Int)
+                durationString = managedCursor.getString(duration as Int)
+                type = managedCursor.getInt(managedCursor.getColumnIndex(TYPE))
+                when (type) {
+                    MISSED_TYPE -> dir = "Missed Calls"
+                    INCOMING_TYPE -> dir = "Incoming Calls"
+                    OUTGOING_TYPE -> dir = "OutGoing Calls"
+                }
+                stringBuffer.append("\nPhone Number:--- " + numberString + " \nCall Type:--- "
+                        + dir + " \nCall Date:--- " + getDateFormatString(dateString)
+                        + " \nCall duration in sec :--- " + durationString)
+                stringBuffer.append("\n==================================================")
+                textView?.setText(stringBuffer)
+
             }
-            stringBuffer.append("\nPhone Number:--- " + numberString + " \nCall Type:--- "
-                    +dir+ " \nCall Date:--- " + getDateFormatString(dateString)
-                    + " \nCall duration in sec :--- " + durationString)
-            stringBuffer.append("\n==================================================")
+            managedCursor.close()
+        } catch (exception: SecurityException) {
+            Log.e("exception", exception.toString())
         }
-        mangedCursor.close()
-        Log.d("testing====",stringBuffer.toString())
+
+
 
     }
 
-    private fun getDateFormatString(dateString:String): String {
-        var dateLong:Long=dateString.toLong()
-        var simpleDateFormat:SimpleDateFormat
-        simpleDateFormat= SimpleDateFormat("dd-MM-yy HH:mm")
-        var finalDate:String=simpleDateFormat.format(Date(dateLong))
+    private fun getDateFormatString(dateString: String): String {
+        var dateLong: Long = dateString.toLong()
+        var simpleDateFormat: SimpleDateFormat
+        simpleDateFormat = SimpleDateFormat("dd-MM-yy HH:mm")
+        var finalDate: String = simpleDateFormat.format(Date(dateLong))
         return finalDate
     }
 }
